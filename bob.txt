@@ -644,182 +644,206 @@
      25  f00a
      26  f00a		       a9 00		      lda	#0
      27  f00c		       85 81		      sta	PLAYER1_X
-     28  f00e		       85 82		      sta	PLAYER1_Y
-     29  f010		       a9 ff		      lda	#$FF	; signal not to render player. Set to 0 when SCANLINE_N == PLAYER1_Y
-     30  f012		       85 83		      sta	PLAYER1_SLICE
-     31  f014
-     32  f014		       a9 01		      lda	#1	; set D0 CTRLPF for reflection
-     33  f016		       85 0a		      sta	CTRLPF
-     34  f018				   StartOfFrame
-     35  f018		       a9 02		      lda	#2
-     36  f01a		       85 01		      sta	VBLANK	; blank video signal
-      0  f01c					      VERTICAL_SYNC
-      1  f01c		       a9 0e		      lda	#%1110
-      2  f01e		       85 02	   .VSLP1     sta	WSYNC
-      3  f020		       85 00		      sta	VSYNC
-      4  f022		       4a		      lsr
-      5  f023		       d0 f9		      bne	.VSLP1
-      0  f025					      TIMER_VBLANK		; init timer for VBLANK period
-      1  f025		       a9 2d		      lda	#45
-      2  f027		       8d 96 02 	      STA	TIM64T
-     39  f02a		       20 75 f0 	      JSR	FramePre	; do any setup before the frame
-      0  f02d					      TIMER_WAIT
-      1  f02d				   .waitTimer
-      2  f02d		       ad 84 02 	      LDA	INTIM
-      3  f030		       d0 fb		      BNE	.waitTimer
-      4  f032		       85 02		      STA	WSYNC
-     41  f034
-     42  f034		       a9 00		      lda	#0
-     43  f036		       85 01		      sta	VBLANK	; unblank video signal
-     44  f038
-     45  f038		       a9 00		      lda	#0
-     46  f03a		       85 80		      sta	SCANLINE_N
-     47  f03c		       85 02		      STA	WSYNC	; wait for the horizontal blanking
-     48  f03e
-      0  f03e					      TIMER_FRAME		; init timer for the visible frame
-      1  f03e		       a9 e6		      lda	#230
-      2  f040		       8d 96 02 	      STA	TIM64T
-     50  f043				   ScanLine
-     51  f043		       a5 80		      lda	SCANLINE_N
-     52  f045		       85 02		      STA	WSYNC
-     53  f047		       20 7e f0 	      JSR	DoScanLine
-     54  f04a
-     55  f04a		       e6 80		      inc	SCANLINE_N
-     56  f04c		       a5 80		      lda	SCANLINE_N
-     57  f04e		       c9 c0		      cmp	#192
-     58  f050		       d0 f1		      bne	ScanLine
-     59  f052
-     60  f052		       85 02		      STA	WSYNC
-     61  f054		       a2 1e		      ldx	#YELLOW	; yellow for the block of lines not rendered. If visible FRAME_TIMER is too long
-     62  f056		       86 09		      stx	COLUBK
-     63  f058
-      0  f058					      TIMER_WAIT
-      1  f058				   .waitTimer
-      2  f058		       ad 84 02 	      LDA	INTIM
-      3  f05b		       d0 fb		      BNE	.waitTimer
-      4  f05d		       85 02		      STA	WSYNC
-     65  f05f
-     66  f05f		       a9 02		      lda	#2
-     67  f061		       85 01		      sta	VBLANK	; blank video signal
-     68  f063
-      0  f063					      TIMER_OVERSCAN		; init timer for overscan
-      1  f063		       a9 28		      lda	#40
-      2  f065		       8d 96 02 	      STA	TIM64T
-     70  f068		       20 9a f0 	      JSR	FramePost
-      0  f06b					      TIMER_WAIT
-      1  f06b				   .waitTimer
-      2  f06b		       ad 84 02 	      LDA	INTIM
-      3  f06e		       d0 fb		      BNE	.waitTimer
-      4  f070		       85 02		      STA	WSYNC
-     72  f072
-     73  f072		       4c 18 f0 	      JMP	StartOfFrame
-     74  f075
-     75  f075
-     76  f075				   FramePre
-     77  f075		       a2 c2		      ldx	#GREEN
-     78  f077		       86 09		      stx	COLUBK	; bk color
-     79  f079		       a9 0e		      lda	#WHITE
-     80  f07b		       85 08		      sta	COLUPF	; set the playfield color
-     81  f07d		       60		      RTS		;
-     82  f07e
-     83  f07e							; scan line is in SCANLINE_N
-     84  f07e							; set playfield and sprites based on scanline
-     85  f07e							;
-     86  f07e				   DoScanLine
-     87  f07e
-     88  f07e
-     89  f07e							;lda SCANLINE_N
-     90  f07e							;cmp #100
-     91  f07e							;bmi .clear		  ; draw before line 10
-     92  f07e		       29 fc		      and	#%11111100	; divide by 4 (to repeat 4 lines) and mult by 4 (to index into bitmap)
-     93  f080		       aa		      tax
-     94  f081		       bd 00 ff 	      lda	Field0,x
-     95  f084		       85 0d		      sta	PF0
-     96  f086		       bd 01 ff 	      lda	Field1,x
-     97  f089		       85 0e		      sta	PF1
-     98  f08b		       bd 02 ff 	      lda	Field2,x
-     99  f08e		       85 0f		      sta	PF2
-    100  f090		       60		      rts
-    101  f091				   .clear
-    102  f091		       a9 00		      lda	#$00
-    103  f093		       85 0d		      sta	PF0	; as the playfield shape
-    104  f095		       85 0e		      sta	PF1	; as the playfield shape
-    105  f097		       85 0f		      sta	PF2	; as the playfield shape
-    106  f099		       60		      RTS
-    107  f09a
-    108  f09a
-    109  f09a							; if timing is correct this color is not seen because it should be called in non-visible overscan area
-    110  f09a
-    111  f09a				   FramePost
-    112  f09a		       a2 76		      ldx	#BLUE
-    113  f09c		       86 09		      stx	COLUBK
-    114  f09e
-    115  f09e		       a9 00		      lda	#0
-    116  f0a0		       85 0d		      sta	PF0	; clear
-    117  f0a2		       85 0e		      sta	PF1	; clear
-    118  f0a4		       85 0f		      sta	PF2	; clear
-    119  f0a6
-    120  f0a6		       60		      RTS
-    121  f0a7
-    122  ff00					      org	$FF00	; *********************** GRAPHICS DATA
-    123  ff00
-    124  ff00				   Playfield
-    125  ff00		       f0 ff ff 00	      .byte.b	%11110000,%11111111,%11111111,$00	; lower nibble ignored and upper reversed for 1st. 3rd reversed, 4th ignored
-    126  ff04		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    127  ff08		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    128  ff0c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    129  ff10		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    130  ff14		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    131  ff18		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    132  ff1c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    133  ff20		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    134  ff24		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    135  ff28		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    136  ff2c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    137  ff30		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    138  ff34		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    139  ff38		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    140  ff3c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    141  ff40		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    142  ff44		       10 3c 00 00	      .byte.b	%00010000,%00111100,%00000000,$00
-    143  ff48		       10 24 00 00	      .byte.b	%00010000,%00100100,%00000000,$00
-    144  ff4c		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00	; start gap
-    145  ff50		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    146  ff54		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    147  ff58		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    148  ff5c		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    149  ff60		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    150  ff64		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    151  ff68		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00	; end gap
-    152  ff6c		       10 24 00 00	      .byte.b	%00010000,%00100100,%00000000,$00
-    153  ff70		       10 3c 00 00	      .byte.b	%00010000,%00111100,%00000000,$00
-    154  ff74		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    155  ff78		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    156  ff7c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    157  ff80		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    158  ff84		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    159  ff88		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    160  ff8c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    161  ff90		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    162  ff94		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    163  ff98		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    164  ff9c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    165  ffa0		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    166  ffa4		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    167  ffa8		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    168  ffac		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    169  ffb0		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    170  ffb4		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    171  ffb8		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    172  ffbc		       f0 ff ff 00	      .byte.b	%11110000,%11111111,%11111111,$00
-    173  ffc0
-    174  ffc0		       ff 00	   Field0     =	Playfield
-    175  ffc0		       ff 01	   Field1     =	Playfield+1
-    176  ffc0		       ff 02	   Field2     =	Playfield+2
-    177  ffc0
-    178  ffc0
-    179  fffa					      ORG	$FFFA
-    180  fffa		       00 f0		      .word.w	Reset	; NMI
-    181  fffc		       00 f0		      .word.w	Reset	; RESET
-    182  fffe		       00 f0		      .word.w	Reset	; IRQ
-    183  10000				    END
+     28  f00e		       a9 0a		      lda	#10
+     29  f010		       85 82		      sta	PLAYER1_Y
+     30  f012		       a9 b4		      lda	#$B4
+     31  f014		       85 83		      sta	PLAYER1_SLICE	; next player1 bitslice to draw
+     32  f016
+     33  f016		       a9 01		      lda	#1	; set D0 CTRLPF for reflection
+     34  f018		       85 0a		      sta	CTRLPF
+     35  f01a				   StartOfFrame
+     36  f01a		       a9 02		      lda	#2
+     37  f01c		       85 01		      sta	VBLANK	; blank video signal
+      0  f01e					      VERTICAL_SYNC
+      1  f01e		       a9 0e		      lda	#%1110
+      2  f020		       85 02	   .VSLP1     sta	WSYNC
+      3  f022		       85 00		      sta	VSYNC
+      4  f024		       4a		      lsr
+      5  f025		       d0 f9		      bne	.VSLP1
+      0  f027					      TIMER_VBLANK		; init timer for VBLANK period
+      1  f027		       a9 2d		      lda	#45
+      2  f029		       8d 96 02 	      STA	TIM64T
+     40  f02c		       20 79 f0 	      JSR	FramePre	; do any setup before the frame
+      0  f02f					      TIMER_WAIT
+      1  f02f				   .waitTimer
+      2  f02f		       ad 84 02 	      LDA	INTIM
+      3  f032		       d0 fb		      BNE	.waitTimer
+      4  f034		       85 02		      STA	WSYNC
+     42  f036
+     43  f036		       a9 00		      lda	#0
+     44  f038		       85 01		      sta	VBLANK	; unblank video signal
+     45  f03a
+     46  f03a		       a9 00		      lda	#0
+     47  f03c		       85 80		      sta	SCANLINE_N
+     48  f03e		       85 02		      STA	WSYNC	; wait for the horizontal blanking
+     49  f040
+      0  f040					      TIMER_FRAME		; init timer for the visible frame
+      1  f040		       a9 e6		      lda	#230
+      2  f042		       8d 96 02 	      STA	TIM64T
+     51  f045		       a9 00		      lda	#0
+     52  f047				   ScanLine
+     53  f047		       85 02		      STA	WSYNC
+     54  f049		       20 82 f0 	      JSR	DoScanLine	; must be 2 lines worth
+     55  f04c
+     56  f04c		       e6 80		      inc	SCANLINE_N
+     57  f04e		       e6 80		      inc	SCANLINE_N
+     58  f050		       a5 80		      lda	SCANLINE_N
+     59  f052		       c9 c0		      cmp	#192
+     60  f054		       d0 f1		      bne	ScanLine
+     61  f056
+     62  f056		       85 02		      STA	WSYNC
+     63  f058		       a2 1e		      ldx	#YELLOW	; yellow for the block of lines not rendered. If visible FRAME_TIMER is too long
+     64  f05a		       86 09		      stx	COLUBK
+     65  f05c
+      0  f05c					      TIMER_WAIT
+      1  f05c				   .waitTimer
+      2  f05c		       ad 84 02 	      LDA	INTIM
+      3  f05f		       d0 fb		      BNE	.waitTimer
+      4  f061		       85 02		      STA	WSYNC
+     67  f063
+     68  f063		       a9 02		      lda	#2
+     69  f065		       85 01		      sta	VBLANK	; blank video signal
+     70  f067
+      0  f067					      TIMER_OVERSCAN		; init timer for overscan
+      1  f067		       a9 28		      lda	#40
+      2  f069		       8d 96 02 	      STA	TIM64T
+     72  f06c		       20 b8 f0 	      JSR	FramePost
+      0  f06f					      TIMER_WAIT
+      1  f06f				   .waitTimer
+      2  f06f		       ad 84 02 	      LDA	INTIM
+      3  f072		       d0 fb		      BNE	.waitTimer
+      4  f074		       85 02		      STA	WSYNC
+     74  f076
+     75  f076		       4c 1a f0 	      JMP	StartOfFrame
+     76  f079
+     77  f079
+     78  f079				   FramePre
+     79  f079		       a2 c2		      ldx	#GREEN
+     80  f07b		       86 09		      stx	COLUBK	; bk color
+     81  f07d		       a9 0e		      lda	#WHITE
+     82  f07f		       85 08		      sta	COLUPF	; set the playfield color
+     83  f081		       60		      RTS		;
+     84  f082
+     85  f082							; scan line is in acc
+     86  f082							; set playfield and sprites based on scanline
+     87  f082							;
+     88  f082				   DoScanLine
+     89  f082		       a8		      tay
+     90  f083		       29 fc		      and	#%11111100	; divide by 4 (to repeat 4 lines) and mult by 4 (to index into bitmap)
+     91  f085		       aa		      tax
+     92  f086		       bd 00 ff 	      lda	Field0,x
+     93  f089		       85 0d		      sta	PF0
+     94  f08b		       bd 01 ff 	      lda	Field1,x
+     95  f08e		       85 0e		      sta	PF1
+     96  f090		       bd 02 ff 	      lda	Field2,x
+     97  f093		       85 0f		      sta	PF2
+     98  f095		       a6 83		      ldx	PLAYER1_SLICE
+     99  f097		       86 1b		      stx	GRP0
+    100  f099
+    101  f099							; compute next player slice
+    102  f099		       98		      tya
+    103  f09a		       18		      clc
+    104  f09b		       e5 82		      sbc	PLAYER1_Y
+    105  f09d		       30 0b		      bmi	.clearPlayer
+    106  f09f		       c9 08		      cmp	#8
+    107  f0a1		       10 07		      bpl	.clearPlayer
+    108  f0a3		       aa		      tax
+    109  f0a4		       bd c0 ff 	      lda	PlayerBitmap,x
+    110  f0a7		       85 83		      sta	PLAYER1_SLICE
+    111  f0a9		       60		      rts
+    112  f0aa				   .clearPlayer
+    113  f0aa		       a9 00		      lda	#0
+    114  f0ac		       85 83		      sta	PLAYER1_SLICE
+    115  f0ae		       60		      rts
+    116  f0af				   .clear
+    117  f0af		       a9 00		      lda	#$00
+    118  f0b1		       85 0d		      sta	PF0	; as the playfield shape
+    119  f0b3		       85 0e		      sta	PF1	; as the playfield shape
+    120  f0b5		       85 0f		      sta	PF2	; as the playfield shape
+    121  f0b7		       60		      RTS
+    122  f0b8
+    123  f0b8
+    124  f0b8							; if timing is correct this color is not seen because it should be called in non-visible overscan area
+    125  f0b8
+    126  f0b8				   FramePost
+    127  f0b8		       a2 76		      ldx	#BLUE
+    128  f0ba		       86 09		      stx	COLUBK
+    129  f0bc
+    130  f0bc		       a9 00		      lda	#0
+    131  f0be		       85 0d		      sta	PF0	; clear
+    132  f0c0		       85 0e		      sta	PF1	; clear
+    133  f0c2		       85 0f		      sta	PF2	; clear
+    134  f0c4
+    135  f0c4		       60		      RTS
+    136  f0c5
+    137  ff00					      org	$FF00	; *********************** GRAPHICS DATA
+    138  ff00
+    139  ff00				   Playfield
+    140  ff00		       f0 ff ff 00	      .byte.b	%11110000,%11111111,%11111111,$00	; lower nibble ignored and upper reversed for 1st. 3rd reversed, 4th ignored
+    141  ff04		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    142  ff08		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    143  ff0c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    144  ff10		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    145  ff14		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    146  ff18		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    147  ff1c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    148  ff20		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    149  ff24		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    150  ff28		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    151  ff2c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    152  ff30		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    153  ff34		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    154  ff38		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    155  ff3c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    156  ff40		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    157  ff44		       10 3c 00 00	      .byte.b	%00010000,%00111100,%00000000,$00
+    158  ff48		       10 24 00 00	      .byte.b	%00010000,%00100100,%00000000,$00
+    159  ff4c		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00	; start gap
+    160  ff50		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    161  ff54		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    162  ff58		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    163  ff5c		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    164  ff60		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    165  ff64		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    166  ff68		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00	; end gap
+    167  ff6c		       10 24 00 00	      .byte.b	%00010000,%00100100,%00000000,$00
+    168  ff70		       10 3c 00 00	      .byte.b	%00010000,%00111100,%00000000,$00
+    169  ff74		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    170  ff78		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    171  ff7c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    172  ff80		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    173  ff84		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    174  ff88		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    175  ff8c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    176  ff90		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    177  ff94		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    178  ff98		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    179  ff9c		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    180  ffa0		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    181  ffa4		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    182  ffa8		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    183  ffac		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    184  ffb0		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    185  ffb4		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    186  ffb8		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    187  ffbc		       f0 ff ff 00	      .byte.b	%11110000,%11111111,%11111111,$00
+    188  ffc0
+    189  ffc0		       ff 00	   Field0     =	Playfield
+    190  ffc0		       ff 01	   Field1     =	Playfield+1
+    191  ffc0		       ff 02	   Field2     =	Playfield+2
+    192  ffc0
+    193  ffc0				   PlayerBitmap
+    194  ffc0		       2c		      .byte.b	%00101100
+    195  ffc1		       6e		      .byte.b	%01101110
+    196  ffc2		       66		      .byte.b	%01100110
+    197  ffc3		       27		      .byte.b	%00100111
+    198  ffc4		       27		      .byte.b	%00100111
+    199  ffc5		       24		      .byte.b	%00100100
+    200  ffc6		       18		      .byte.b	%00011000
+    201  ffc7		       3c		      .byte.b	%00111100
+    202  ffc8
+    203  fffa					      ORG	$FFFA
+    204  fffa		       00 f0		      .word.w	Reset	; NMI
+    205  fffc		       00 f0		      .word.w	Reset	; RESET
+    206  fffe		       00 f0		      .word.w	Reset	; IRQ
+    207  10000				    END

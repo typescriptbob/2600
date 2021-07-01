@@ -25,9 +25,10 @@ Reset
 
     lda #0
     sta PLAYER1_X
+    lda #10
     sta PLAYER1_Y
-    lda #$FF            ; signal not to render player. Set to 0 when SCANLINE_N == PLAYER1_Y
-    sta PLAYER1_SLICE
+    lda #$B4
+    sta PLAYER1_SLICE   ; next player1 bitslice to draw
 
     lda #1              ; set D0 CTRLPF for reflection
     sta CTRLPF
@@ -47,11 +48,12 @@ StartOfFrame
     STA WSYNC       ; wait for the horizontal blanking
 
     TIMER_FRAME     ; init timer for the visible frame
+    lda #0
 ScanLine
-    lda SCANLINE_N
     STA WSYNC
-    JSR DoScanLine
+    JSR DoScanLine  ; must be 2 lines worth
 
+    inc SCANLINE_N
     inc SCANLINE_N
     lda SCANLINE_N
     cmp #192
@@ -80,15 +82,11 @@ FramePre
     sta COLUPF         ; set the playfield color
     RTS;
 
-; scan line is in SCANLINE_N
+; scan line is in acc
 ; set playfield and sprites based on scanline
 ;
 DoScanLine
-
-
-    ;lda SCANLINE_N
-    ;cmp #100
-    ;bmi .clear              ; draw before line 10
+    tay
     and #%11111100           ; divide by 4 (to repeat 4 lines) and mult by 4 (to index into bitmap)
     tax
     lda Field0,x
@@ -97,6 +95,23 @@ DoScanLine
     sta PF1
     lda Field2,x
     sta PF2
+    ldx PLAYER1_SLICE
+    stx GRP0
+
+    ; compute next player slice
+    tya
+    clc
+    sbc PLAYER1_Y
+    bmi .clearPlayer
+    cmp #8
+    bpl .clearPlayer
+    tax
+    lda PlayerBitmap,x
+    sta PLAYER1_SLICE
+    rts
+.clearPlayer
+    lda #0
+    sta PLAYER1_SLICE
     rts
 .clear
     lda #$00
@@ -175,6 +190,15 @@ Field0 = Playfield
 Field1 = Playfield+1
 Field2 = Playfield+2
 
+PlayerBitmap
+    .byte %00101100
+    .byte %01101110
+    .byte %01100110
+    .byte %00100111
+    .byte %00100111
+    .byte %00100100
+    .byte %00011000
+    .byte %00111100
 
     ORG $FFFA
     .word Reset          ; NMI
