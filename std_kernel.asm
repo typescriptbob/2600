@@ -15,7 +15,8 @@ SCANLINE_N  ds 1
 PLAYER1_X   ds 1
 PLAYER1_Y   ds 1
 
-PLAYER1_SLICE ds 1  ; mostly $FF. Set to 0 on first scanline with player. inc each subsq line until 8
+PLAYER1_SLICE_EVEN ds 1  ; player slice even lines
+PLAYER1_SLICE_ODD  ds 1  ; player slice odd lines
 
     SEG
     ORG $F000
@@ -25,10 +26,12 @@ Reset
 
     lda #0
     sta PLAYER1_X
-    lda #10
+    lda #56
     sta PLAYER1_Y
-    lda #$B4
-    sta PLAYER1_SLICE   ; next player1 bitslice to draw
+    lda #100
+    sta PLAYER1_SLICE_EVEN   ; next player1 bitslice to draw
+    lda #$44
+    sta PLAYER1_SLICE_ODD
 
     lda #1              ; set D0 CTRLPF for reflection
     sta CTRLPF
@@ -43,23 +46,14 @@ StartOfFrame
     lda #0
     sta VBLANK      ; unblank video signal
 
-    lda #0
-    sta SCANLINE_N
-    STA WSYNC       ; wait for the horizontal blanking
+
 
     TIMER_FRAME     ; init timer for the visible frame
     lda #0
+    STA WSYNC
 ScanLine
-    STA WSYNC
-    JSR DoScanLine  ; must be 2 lines worth
+    JSR DoScanLineLoop
 
-    inc SCANLINE_N
-    inc SCANLINE_N
-    lda SCANLINE_N
-    cmp #192
-    bne ScanLine
-
-    STA WSYNC
     ldx #YELLOW    ; yellow for the block of lines not rendered. If visible FRAME_TIMER is too long
     stx COLUBK
 
@@ -82,10 +76,17 @@ FramePre
     sta COLUPF         ; set the playfield color
     RTS;
 
-; scan line is in acc
+; scan line is in acc and y
 ; set playfield and sprites based on scanline
 ;
-DoScanLine
+DoScanLineLoop
+    lda #0
+    sta SCANLINE_N
+    tay
+.continue
+    STA WSYNC
+    ldx PLAYER1_SLICE_EVEN
+    stx GRP0
     tay
     and #%11111100           ; divide by 4 (to repeat 4 lines) and mult by 4 (to index into bitmap)
     tax
@@ -95,30 +96,49 @@ DoScanLine
     sta PF1
     lda Field2,x
     sta PF2
-    ldx PLAYER1_SLICE
+
+    ; must be done after the odd scanline
+    sta WSYNC
+    ldx PLAYER1_SLICE_ODD
     stx GRP0
 
     ; compute next player slice
     tya
-    clc
+    sec ; 2s complement so set carry
     sbc PLAYER1_Y
     bmi .clearPlayer
     cmp #8
     bpl .clearPlayer
     tax
+    ;lda #$AA
     lda PlayerBitmap,x
-    sta PLAYER1_SLICE
-    rts
+    sta PLAYER1_SLICE_EVEN
+    ;lda #$55
+    lda PlayerBitmap+1,x
+
+    sta PLAYER1_SLICE_ODD
+    jmp .increment
 .clearPlayer
+    nop
+    nop
+    nop
+    nop
     lda #0
-    sta PLAYER1_SLICE
+    sta PLAYER1_SLICE_EVEN
+    sta PLAYER1_SLICE_ODD
+.increment
+    inc SCANLINE_N
+    inc SCANLINE_N
+    lda SCANLINE_N
+    cmp #192
+    bne .continue
+    ; clear playfield at end of line
+    STA WSYNC
+    lda #0
+    sta PF0
+    sta PF1
+    sta PF2
     rts
-.clear
-    lda #$00
-    sta PF0                ; as the playfield shape
-    sta PF1                ; as the playfield shape
-    sta PF2                ; as the playfield shape
-    RTS
 
 
 ; if timing is correct this color is not seen because it should be called in non-visible overscan area
@@ -191,10 +211,10 @@ Field1 = Playfield+1
 Field2 = Playfield+2
 
 PlayerBitmap
-    .byte %00101100
-    .byte %01101110
-    .byte %01100110
-    .byte %00100111
+    .byte %10000001
+    .byte %01000010
+    .byte %00100100
+    .byte %00011000
     .byte %00100111
     .byte %00100100
     .byte %00011000

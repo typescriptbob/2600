@@ -15,7 +15,7 @@
     ENDM
 
     MAC TIMER_FRAME
-        lda #230
+        lda #231
         STA TIM64T
     ENDM
 
