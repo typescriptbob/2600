@@ -18,6 +18,8 @@ PLAYER0_Y   ds 1
 PLAYER0_SLICE_EVEN ds 1  ; player slice even lines
 PLAYER0_SLICE_ODD  ds 1  ; player slice odd lines
 
+TEMP    ds 1
+
     SEG
     ORG $F000
 
@@ -120,6 +122,11 @@ FramePre
     sta RESP0
 
     lda PLAYER0_X
+    and #$0F
+    sta TEMP
+    lda #0
+    sec
+    sbc TEMP
     asl
     asl
     asl
