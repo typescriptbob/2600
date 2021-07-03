@@ -12,11 +12,11 @@ YELLOW  = $1E
     ORG $80   ; start of RAM
 
 SCANLINE_N  ds 1
-PLAYER1_X   ds 1
-PLAYER1_Y   ds 1
+PLAYER0_X   ds 1
+PLAYER0_Y   ds 1
 
-PLAYER1_SLICE_EVEN ds 1  ; player slice even lines
-PLAYER1_SLICE_ODD  ds 1  ; player slice odd lines
+PLAYER0_SLICE_EVEN ds 1  ; player slice even lines
+PLAYER0_SLICE_ODD  ds 1  ; player slice odd lines
 
     SEG
     ORG $F000
@@ -24,14 +24,17 @@ PLAYER1_SLICE_ODD  ds 1  ; player slice odd lines
 Reset
     CLEAN_START
 
-    lda #0
-    sta PLAYER1_X
-    lda #56
-    sta PLAYER1_Y
+    lda #26
+    sta PLAYER0_X
+    lda #84
+    sta PLAYER0_Y
+
+    lda #$FA
+    sta COLUP0              ; color player 0
     lda #100
-    sta PLAYER1_SLICE_EVEN   ; next player1 bitslice to draw
+    sta PLAYER0_SLICE_EVEN   ; next player 0 bitslice to draw
     lda #$44
-    sta PLAYER1_SLICE_ODD
+    sta PLAYER0_SLICE_ODD
 
     lda #1              ; set D0 CTRLPF for reflection
     sta CTRLPF
@@ -74,6 +77,56 @@ FramePre
     stx COLUBK         ; bk color
     lda #WHITE
     sta COLUPF         ; set the playfield color
+
+    ldx PLAYER0_Y
+    lda #$20
+    bit SWCHA
+    bne .testUp
+    inx
+    jmp .storeY
+.testUp
+    lda #$10
+    bit SWCHA
+    bne .storeY
+    dex
+.storeY
+    stx PLAYER0_Y
+
+    ldx PLAYER0_X
+    lda #$80
+    bit SWCHA
+    bne .testLeft
+    inx
+    jmp .storeX
+.testLeft
+    lda #$40
+    bit SWCHA
+    bne .storeX
+    dex
+.storeX
+    stx PLAYER0_X
+
+.setHorizontalPos
+    lda PLAYER0_X       ; divide by 16
+    lsr
+    lsr
+    lsr
+    lsr
+    tax
+    sta WSYNC           ; wait for new scanline to calc position player 1
+.delayLoop
+    dex
+    bpl .delayLoop
+    sta RESP0
+
+    lda PLAYER0_X
+    asl
+    asl
+    asl
+    asl
+    sta HMP0            ; TODO - compute correcly
+    sta WSYNC           ; wait for new scanline to fine tune position player 1
+    sta HMOVE
     RTS;
 
 ; scan line is in acc and y
@@ -85,7 +138,7 @@ DoScanLineLoop
     tay
 .continue
     STA WSYNC
-    ldx PLAYER1_SLICE_EVEN
+    ldx PLAYER0_SLICE_EVEN
     stx GRP0
     tay
     and #%11111100           ; divide by 4 (to repeat 4 lines) and mult by 4 (to index into bitmap)
@@ -99,24 +152,22 @@ DoScanLineLoop
 
     ; must be done after the odd scanline
     sta WSYNC
-    ldx PLAYER1_SLICE_ODD
+    ldx PLAYER0_SLICE_ODD
     stx GRP0
 
     ; compute next player slice
     tya
     sec ; 2s complement so set carry
-    sbc PLAYER1_Y
+    sbc PLAYER0_Y
     bmi .clearPlayer
     cmp #8
     bpl .clearPlayer
     tax
-    ;lda #$AA
     lda PlayerBitmap,x
-    sta PLAYER1_SLICE_EVEN
-    ;lda #$55
+    sta PLAYER0_SLICE_EVEN
     lda PlayerBitmap+1,x
 
-    sta PLAYER1_SLICE_ODD
+    sta PLAYER0_SLICE_ODD
     jmp .increment
 .clearPlayer
     nop
@@ -124,8 +175,8 @@ DoScanLineLoop
     nop
     nop
     lda #0
-    sta PLAYER1_SLICE_EVEN
-    sta PLAYER1_SLICE_ODD
+    sta PLAYER0_SLICE_EVEN
+    sta PLAYER0_SLICE_ODD
 .increment
     inc SCANLINE_N
     inc SCANLINE_N
@@ -214,8 +265,8 @@ PlayerBitmap
     .byte %10000001
     .byte %01000010
     .byte %00100100
-    .byte %00011000
-    .byte %00100111
+    .byte %10011000
+    .byte %11100100
     .byte %00100100
     .byte %00011000
     .byte %00111100
