@@ -26,7 +26,7 @@ TEMP    ds 1
 Reset
     CLEAN_START
 
-    lda #26
+    lda #0
     sta PLAYER0_X
     lda #84
     sta PLAYER0_Y
@@ -108,33 +108,11 @@ FramePre
 .storeX
     stx PLAYER0_X
 
-.setHorizontalPos
-    lda PLAYER0_X       ; divide by 16
-    lsr
-    lsr
-    lsr
-    lsr
-    tax
-    sta WSYNC           ; wait for new scanline to calc position player 1
-.delayLoop
-    dex
-    bpl .delayLoop
-    sta RESP0
-
     lda PLAYER0_X
-    and #$0F
-    sta TEMP
-    lda #0
-    sec
-    sbc TEMP
-    asl
-    asl
-    asl
-    asl
-    sta HMP0            ; TODO - compute correcly
+    jsr setHorizontalPos
     sta WSYNC           ; wait for new scanline to fine tune position player 1
     sta HMOVE
-    RTS;
+    rts
 
 ; scan line is in acc and y
 ; set playfield and sprites based on scanline
@@ -213,6 +191,20 @@ FramePost
     RTS
 
 	org $FF00 ; *********************** GRAPHICS DATA
+setHorizontalPos
+    sta WSYNC
+    sec
+.DivideLoop
+    sbc #15
+    bcs .DivideLoop
+    eor #7
+    asl
+    asl
+    asl
+    asl
+    sta HMP0
+    sta RESP0
+    rts
 
 Playfield
     .byte %11110000,%11111111,%11111111,$00   ; lower nibble ignored and upper reversed for 1st. 3rd reversed, 4th ignored
