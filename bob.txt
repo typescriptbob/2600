@@ -612,22 +612,27 @@
       8  10000 ????		00 76	    BLUE       =	$76
       9  10000 ????		00 1e	    YELLOW     =	$1E
      10  10000 ????
-     11 U0086 ????				      SEG.U	vars
+     11 U0089 ????				      SEG.U	vars
      12 U0080					      ORG	$80	; start of RAM
      13 U0080
      14 U0080		       00	   SCANLINE_N ds	1
      15 U0081		       00	   PLAYER0_X  ds	1
      16 U0082		       00	   PLAYER0_Y  ds	1
      17 U0083
-     18 U0083		       00	   PLAYER0_SLICE_EVEN ds	1	; player slice even lines
-     19 U0084		       00	   PLAYER0_SLICE_ODD ds	1	; player slice odd lines
+     18 U0083		       00	   PLAYER0_X_PREV ds	1
+     19 U0084		       00	   PLAYER0_Y_PREV ds	1
      20 U0085
-     21 U0085		       00	   TEMP       ds	1
-     22 U0086
-     23  10000 ????				       SEG
-     24  f000					      ORG	$F000
-     25  f000
-     26  f000				   Reset
+     21 U0085		       00	   PLAYER0_SLICE_EVEN ds	1	; player slice even lines
+     22 U0086		       00	   PLAYER0_SLICE_ODD ds	1	; player slice odd lines
+     23 U0087
+     24 U0087		       00	   BK_COLOR   ds	1
+     25 U0088
+     26 U0088		       00	   TEMP       ds	1
+     27 U0089
+     28  10000 ????				       SEG
+     29  f000					      ORG	$F000
+     30  f000
+     31  f000				   Reset
       0  f000					      CLEAN_START
       1  f000		       78		      sei
       2  f001		       d8		      cld
@@ -644,276 +649,290 @@
      13  f007		       48		      pha
      14  f008		       d0 fb		      bne	.CLEAR_STACK
      15  f00a
-     28  f00a
-     29  f00a		       a9 00		      lda	#0
-     30  f00c		       85 81		      sta	PLAYER0_X
-     31  f00e		       a9 54		      lda	#84
-     32  f010		       85 82		      sta	PLAYER0_Y
-     33  f012
-     34  f012		       a9 fa		      lda	#$FA
-     35  f014		       85 06		      sta	COLUP0	; color player 0
-     36  f016		       a9 64		      lda	#100
-     37  f018		       85 83		      sta	PLAYER0_SLICE_EVEN	; next player 0 bitslice to draw
-     38  f01a		       a9 44		      lda	#$44
-     39  f01c		       85 84		      sta	PLAYER0_SLICE_ODD
-     40  f01e
-     41  f01e		       a9 01		      lda	#1	; set D0 CTRLPF for reflection
-     42  f020		       85 0a		      sta	CTRLPF
-     43  f022				   StartOfFrame
-     44  f022		       a9 02		      lda	#2
-     45  f024		       85 01		      sta	VBLANK	; blank video signal
-      0  f026					      VERTICAL_SYNC
-      1  f026		       a9 0e		      lda	#%1110
-      2  f028		       85 02	   .VSLP1     sta	WSYNC
-      3  f02a		       85 00		      sta	VSYNC
-      4  f02c		       4a		      lsr
-      5  f02d		       d0 f9		      bne	.VSLP1
-      0  f02f					      TIMER_VBLANK		; init timer for VBLANK period
-      1  f02f		       a9 2d		      lda	#45
-      2  f031		       8d 96 02 	      STA	TIM64T
-     48  f034		       20 6f f0 	      JSR	FramePre	; do any setup before the frame
-      0  f037					      TIMER_WAIT
-      1  f037				   .waitTimer
-      2  f037		       ad 84 02 	      LDA	INTIM
-      3  f03a		       d0 fb		      BNE	.waitTimer
-      4  f03c		       85 02		      STA	WSYNC
-     50  f03e
-     51  f03e		       a9 00		      lda	#0
-     52  f040		       85 01		      sta	VBLANK	; unblank video signal
-     53  f042
-     54  f042
-     55  f042
-      0  f042					      TIMER_FRAME		; init timer for the visible frame
-      1  f042		       a9 e7		      lda	#231
-      2  f044		       8d 96 02 	      STA	TIM64T
-     57  f047		       a9 00		      lda	#0
-     58  f049		       85 02		      STA	WSYNC
-     59  f04b				   ScanLine
-     60  f04b		       20 af f0 	      JSR	DoScanLineLoop
-     61  f04e
-     62  f04e		       a2 1e		      ldx	#YELLOW	; yellow for the block of lines not rendered. If visible FRAME_TIMER is too long
-     63  f050		       86 09		      stx	COLUBK
-     64  f052
-      0  f052					      TIMER_WAIT
-      1  f052				   .waitTimer
-      2  f052		       ad 84 02 	      LDA	INTIM
-      3  f055		       d0 fb		      BNE	.waitTimer
-      4  f057		       85 02		      STA	WSYNC
-     66  f059
-     67  f059		       a9 02		      lda	#2
-     68  f05b		       85 01		      sta	VBLANK	; blank video signal
-     69  f05d
-      0  f05d					      TIMER_OVERSCAN		; init timer for overscan
-      1  f05d		       a9 28		      lda	#40
-      2  f05f		       8d 96 02 	      STA	TIM64T
-     71  f062		       20 0a f1 	      JSR	FramePost
-      0  f065					      TIMER_WAIT
-      1  f065				   .waitTimer
-      2  f065		       ad 84 02 	      LDA	INTIM
-      3  f068		       d0 fb		      BNE	.waitTimer
-      4  f06a		       85 02		      STA	WSYNC
-     73  f06c
-     74  f06c		       4c 22 f0 	      JMP	StartOfFrame
-     75  f06f
-     76  f06f
-     77  f06f				   FramePre
-     78  f06f		       a2 c2		      ldx	#GREEN
-     79  f071		       86 09		      stx	COLUBK	; bk color
-     80  f073		       a9 0e		      lda	#WHITE
-     81  f075		       85 08		      sta	COLUPF	; set the playfield color
-     82  f077
-     83  f077		       a6 82		      ldx	PLAYER0_Y
-     84  f079		       a9 20		      lda	#$20
-     85  f07b		       2c 80 02 	      bit	SWCHA
-     86  f07e		       d0 04		      bne	.testUp
-     87  f080		       e8		      inx
-     88  f081		       4c 8c f0 	      jmp	.storeY
-     89  f084				   .testUp
-     90  f084		       a9 10		      lda	#$10
-     91  f086		       2c 80 02 	      bit	SWCHA
-     92  f089		       d0 01		      bne	.storeY
-     93  f08b		       ca		      dex
-     94  f08c				   .storeY
-     95  f08c		       86 82		      stx	PLAYER0_Y
-     96  f08e
-     97  f08e		       a6 81		      ldx	PLAYER0_X
-     98  f090		       a9 80		      lda	#$80
-     99  f092		       2c 80 02 	      bit	SWCHA
-    100  f095		       d0 04		      bne	.testLeft
-    101  f097		       e8		      inx
-    102  f098		       4c a3 f0 	      jmp	.storeX
-    103  f09b				   .testLeft
-    104  f09b		       a9 40		      lda	#$40
-    105  f09d		       2c 80 02 	      bit	SWCHA
-    106  f0a0		       d0 01		      bne	.storeX
-    107  f0a2		       ca		      dex
-    108  f0a3				   .storeX
-    109  f0a3		       86 81		      stx	PLAYER0_X
-    110  f0a5
-    111  f0a5		       a5 81		      lda	PLAYER0_X
-    112  f0a7		       20 00 ff 	      jsr	setHorizontalPos
-    113  f0aa		       85 02		      sta	WSYNC	; wait for new scanline to fine tune position player 1
-    114  f0ac		       85 2a		      sta	HMOVE
-    115  f0ae		       60		      rts
-    116  f0af
-    117  f0af							; scan line is in acc and y
-    118  f0af							; set playfield and sprites based on scanline
-    119  f0af							;
-    120  f0af				   DoScanLineLoop
-    121  f0af		       a9 00		      lda	#0
-    122  f0b1		       85 80		      sta	SCANLINE_N
-    123  f0b3		       a8		      tay
-    124  f0b4				   .continue
-    125  f0b4		       85 02		      STA	WSYNC
-    126  f0b6		       a6 83		      ldx	PLAYER0_SLICE_EVEN
-    127  f0b8		       86 1b		      stx	GRP0
-    128  f0ba		       a8		      tay
-    129  f0bb		       29 fc		      and	#%11111100	; divide by 4 (to repeat 4 lines) and mult by 4 (to index into bitmap)
-    130  f0bd		       aa		      tax
-    131  f0be		       bd 12 ff 	      lda	Field0,x
-    132  f0c1		       85 0d		      sta	PF0
-    133  f0c3		       bd 13 ff 	      lda	Field1,x
-    134  f0c6		       85 0e		      sta	PF1
-    135  f0c8		       bd 14 ff 	      lda	Field2,x
-    136  f0cb		       85 0f		      sta	PF2
-    137  f0cd
-    138  f0cd							; must be done after the odd scanline
-    139  f0cd		       85 02		      sta	WSYNC
-    140  f0cf		       a6 84		      ldx	PLAYER0_SLICE_ODD
-    141  f0d1		       86 1b		      stx	GRP0
-    142  f0d3
-    143  f0d3							; compute next player slice
-    144  f0d3		       98		      tya
-    145  f0d4		       38		      sec		; 2s complement so set carry
-    146  f0d5		       e5 82		      sbc	PLAYER0_Y
-    147  f0d7		       30 12		      bmi	.clearPlayer
-    148  f0d9		       c9 08		      cmp	#8
-    149  f0db		       10 0e		      bpl	.clearPlayer
-    150  f0dd		       aa		      tax
-    151  f0de		       bd d2 ff 	      lda	PlayerBitmap,x
-    152  f0e1		       85 83		      sta	PLAYER0_SLICE_EVEN
-    153  f0e3		       bd d3 ff 	      lda	PlayerBitmap+1,x
-    154  f0e6
-    155  f0e6		       85 84		      sta	PLAYER0_SLICE_ODD
-    156  f0e8		       4c f5 f0 	      jmp	.increment
-    157  f0eb				   .clearPlayer
-    158  f0eb		       ea		      nop
-    159  f0ec		       ea		      nop
-    160  f0ed		       ea		      nop
-    161  f0ee		       ea		      nop
-    162  f0ef		       a9 00		      lda	#0
-    163  f0f1		       85 83		      sta	PLAYER0_SLICE_EVEN
-    164  f0f3		       85 84		      sta	PLAYER0_SLICE_ODD
-    165  f0f5				   .increment
-    166  f0f5		       e6 80		      inc	SCANLINE_N
-    167  f0f7		       e6 80		      inc	SCANLINE_N
-    168  f0f9		       a5 80		      lda	SCANLINE_N
-    169  f0fb		       c9 c0		      cmp	#192
-    170  f0fd		       d0 b5		      bne	.continue
-    171  f0ff							; clear playfield at end of line
-    172  f0ff		       85 02		      STA	WSYNC
-    173  f101		       a9 00		      lda	#0
-    174  f103		       85 0d		      sta	PF0
-    175  f105		       85 0e		      sta	PF1
-    176  f107		       85 0f		      sta	PF2
-    177  f109		       60		      rts
-    178  f10a
-    179  f10a
-    180  f10a							; if timing is correct this color is not seen because it should be called in non-visible overscan area
-    181  f10a
-    182  f10a				   FramePost
-    183  f10a		       a2 76		      ldx	#BLUE
-    184  f10c		       86 09		      stx	COLUBK
-    185  f10e
-    186  f10e		       a9 00		      lda	#0
-    187  f110		       85 0d		      sta	PF0	; clear
-    188  f112		       85 0e		      sta	PF1	; clear
-    189  f114		       85 0f		      sta	PF2	; clear
-    190  f116
-    191  f116		       60		      RTS
-    192  f117
-    193  ff00					      org	$FF00	; *********************** GRAPHICS DATA
-    194  ff00				   setHorizontalPos
-    195  ff00		       85 02		      sta	WSYNC
-    196  ff02		       38		      sec
-    197  ff03				   .DivideLoop
-    198  ff03		       e9 0f		      sbc	#15
-    199  ff05		       b0 fc		      bcs	.DivideLoop
-    200  ff07		       49 07		      eor	#7
-    201  ff09		       0a		      asl
-    202  ff0a		       0a		      asl
-    203  ff0b		       0a		      asl
-    204  ff0c		       0a		      asl
-    205  ff0d		       85 20		      sta	HMP0
-    206  ff0f		       85 10		      sta	RESP0
-    207  ff11		       60		      rts
-    208  ff12
-    209  ff12				   Playfield
-    210  ff12		       f0 ff ff 00	      .byte.b	%11110000,%11111111,%11111111,$00	; lower nibble ignored and upper reversed for 1st. 3rd reversed, 4th ignored
-    211  ff16		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    212  ff1a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    213  ff1e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    214  ff22		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    215  ff26		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    216  ff2a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    217  ff2e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    218  ff32		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    219  ff36		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    220  ff3a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    221  ff3e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    222  ff42		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    223  ff46		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    224  ff4a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    225  ff4e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    226  ff52		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    227  ff56		       10 3c 00 00	      .byte.b	%00010000,%00111100,%00000000,$00
-    228  ff5a		       10 24 00 00	      .byte.b	%00010000,%00100100,%00000000,$00
-    229  ff5e		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00	; start gap
-    230  ff62		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    231  ff66		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    232  ff6a		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    233  ff6e		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    234  ff72		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    235  ff76		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
-    236  ff7a		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00	; end gap
-    237  ff7e		       10 24 00 00	      .byte.b	%00010000,%00100100,%00000000,$00
-    238  ff82		       10 3c 00 00	      .byte.b	%00010000,%00111100,%00000000,$00
-    239  ff86		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    240  ff8a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    241  ff8e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    242  ff92		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    243  ff96		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    244  ff9a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    245  ff9e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    246  ffa2		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    247  ffa6		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    248  ffaa		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    249  ffae		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    250  ffb2		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    251  ffb6		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    252  ffba		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    253  ffbe		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    254  ffc2		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    255  ffc6		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    256  ffca		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
-    257  ffce		       f0 ff ff 00	      .byte.b	%11110000,%11111111,%11111111,$00
-    258  ffd2
-    259  ffd2		       ff 12	   Field0     =	Playfield
-    260  ffd2		       ff 13	   Field1     =	Playfield+1
-    261  ffd2		       ff 14	   Field2     =	Playfield+2
-    262  ffd2
-    263  ffd2				   PlayerBitmap
-    264  ffd2		       81		      .byte.b	%10000001
-    265  ffd3		       42		      .byte.b	%01000010
-    266  ffd4		       24		      .byte.b	%00100100
-    267  ffd5		       98		      .byte.b	%10011000
-    268  ffd6		       e4		      .byte.b	%11100100
-    269  ffd7		       24		      .byte.b	%00100100
-    270  ffd8		       18		      .byte.b	%00011000
-    271  ffd9		       3c		      .byte.b	%00111100
-    272  ffda
-    273  fffa					      ORG	$FFFA
-    274  fffa		       00 f0		      .word.w	Reset	; NMI
-    275  fffc		       00 f0		      .word.w	Reset	; RESET
-    276  fffe		       00 f0		      .word.w	Reset	; IRQ
-    277  10000				    END
+     33  f00a
+     34  f00a		       a9 00		      lda	#0
+     35  f00c		       85 81		      sta	PLAYER0_X
+     36  f00e		       a9 54		      lda	#84
+     37  f010		       85 82		      sta	PLAYER0_Y
+     38  f012
+     39  f012		       a9 c2		      lda	#GREEN
+     40  f014		       85 87		      sta	BK_COLOR
+     41  f016		       a9 fa		      lda	#$FA
+     42  f018		       85 06		      sta	COLUP0	; color player 0
+     43  f01a		       a9 64		      lda	#100
+     44  f01c		       85 85		      sta	PLAYER0_SLICE_EVEN	; next player 0 bitslice to draw
+     45  f01e		       a9 44		      lda	#$44
+     46  f020		       85 86		      sta	PLAYER0_SLICE_ODD
+     47  f022
+     48  f022		       a9 01		      lda	#1	; set D0 CTRLPF for reflection
+     49  f024		       85 0a		      sta	CTRLPF
+     50  f026				   StartOfFrame
+     51  f026		       a9 02		      lda	#2
+     52  f028		       85 01		      sta	VBLANK	; blank video signal
+      0  f02a					      VERTICAL_SYNC
+      1  f02a		       a9 0e		      lda	#%1110
+      2  f02c		       85 02	   .VSLP1     sta	WSYNC
+      3  f02e		       85 00		      sta	VSYNC
+      4  f030		       4a		      lsr
+      5  f031		       d0 f9		      bne	.VSLP1
+      0  f033					      TIMER_VBLANK		; init timer for VBLANK period
+      1  f033		       a9 2d		      lda	#45
+      2  f035		       8d 96 02 	      STA	TIM64T
+     55  f038		       20 73 f0 	      JSR	FramePre	; do any setup before the frame
+      0  f03b					      TIMER_WAIT
+      1  f03b				   .waitTimer
+      2  f03b		       ad 84 02 	      LDA	INTIM
+      3  f03e		       d0 fb		      BNE	.waitTimer
+      4  f040		       85 02		      STA	WSYNC
+     57  f042
+     58  f042		       a9 00		      lda	#0
+     59  f044		       85 01		      sta	VBLANK	; unblank video signal
+     60  f046
+     61  f046
+     62  f046
+      0  f046					      TIMER_FRAME		; init timer for the visible frame
+      1  f046		       a9 e7		      lda	#231
+      2  f048		       8d 96 02 	      STA	TIM64T
+     64  f04b		       a9 00		      lda	#0
+     65  f04d		       85 02		      STA	WSYNC
+     66  f04f				   ScanLine
+     67  f04f		       20 b3 f0 	      JSR	DoScanLineLoop
+     68  f052
+     69  f052		       a2 1e		      ldx	#YELLOW	; yellow for the block of lines not rendered. If visible FRAME_TIMER is too long
+     70  f054		       86 09		      stx	COLUBK
+     71  f056
+      0  f056					      TIMER_WAIT
+      1  f056				   .waitTimer
+      2  f056		       ad 84 02 	      LDA	INTIM
+      3  f059		       d0 fb		      BNE	.waitTimer
+      4  f05b		       85 02		      STA	WSYNC
+     73  f05d
+     74  f05d		       a9 02		      lda	#2
+     75  f05f		       85 01		      sta	VBLANK	; blank video signal
+     76  f061
+      0  f061					      TIMER_OVERSCAN		; init timer for overscan
+      1  f061		       a9 28		      lda	#40
+      2  f063		       8d 96 02 	      STA	TIM64T
+     78  f066		       20 0e f1 	      JSR	FramePost
+      0  f069					      TIMER_WAIT
+      1  f069				   .waitTimer
+      2  f069		       ad 84 02 	      LDA	INTIM
+      3  f06c		       d0 fb		      BNE	.waitTimer
+      4  f06e		       85 02		      STA	WSYNC
+     80  f070
+     81  f070		       4c 26 f0 	      JMP	StartOfFrame
+     82  f073
+     83  f073
+     84  f073				   FramePre
+     85  f073
+     86  f073		       a9 0e		      lda	#WHITE
+     87  f075		       85 08		      sta	COLUPF	; set the playfield color
+     88  f077
+     89  f077		       a6 82		      ldx	PLAYER0_Y
+     90  f079		       86 84		      stx	PLAYER0_Y_PREV
+     91  f07b		       a9 20		      lda	#$20
+     92  f07d		       2c 80 02 	      bit	SWCHA
+     93  f080		       d0 04		      bne	.testUp
+     94  f082		       e8		      inx
+     95  f083		       4c 8e f0 	      jmp	.storeY
+     96  f086				   .testUp
+     97  f086		       a9 10		      lda	#$10
+     98  f088		       2c 80 02 	      bit	SWCHA
+     99  f08b		       d0 01		      bne	.storeY
+    100  f08d		       ca		      dex
+    101  f08e				   .storeY
+    102  f08e		       86 82		      stx	PLAYER0_Y
+    103  f090
+    104  f090		       a6 81		      ldx	PLAYER0_X
+    105  f092		       86 83		      stx	PLAYER0_X_PREV
+    106  f094		       a9 80		      lda	#$80
+    107  f096		       2c 80 02 	      bit	SWCHA
+    108  f099		       d0 04		      bne	.testLeft
+    109  f09b		       e8		      inx
+    110  f09c		       4c a7 f0 	      jmp	.storeX
+    111  f09f				   .testLeft
+    112  f09f		       a9 40		      lda	#$40
+    113  f0a1		       2c 80 02 	      bit	SWCHA
+    114  f0a4		       d0 01		      bne	.storeX
+    115  f0a6		       ca		      dex
+    116  f0a7				   .storeX
+    117  f0a7		       86 81		      stx	PLAYER0_X
+    118  f0a9
+    119  f0a9		       a5 81		      lda	PLAYER0_X
+    120  f0ab		       20 00 ff 	      jsr	setHorizontalPos
+    121  f0ae		       85 02		      sta	WSYNC	; wait for new scanline to fine tune position player 1
+    122  f0b0		       85 2a		      sta	HMOVE
+    123  f0b2		       60		      rts
+    124  f0b3
+    125  f0b3							; scan line is in acc and y
+    126  f0b3							; set playfield and sprites based on scanline
+    127  f0b3							;
+    128  f0b3				   DoScanLineLoop
+    129  f0b3		       a9 00		      lda	#0
+    130  f0b5		       85 80		      sta	SCANLINE_N
+    131  f0b7		       a8		      tay
+    132  f0b8				   .continue
+    133  f0b8		       85 02		      STA	WSYNC
+    134  f0ba		       a6 85		      ldx	PLAYER0_SLICE_EVEN
+    135  f0bc		       86 1b		      stx	GRP0
+    136  f0be		       a8		      tay
+    137  f0bf		       29 fc		      and	#%11111100	; divide by 4 (to repeat 4 lines) and mult by 4 (to index into bitmap)
+    138  f0c1		       aa		      tax
+    139  f0c2		       bd 12 ff 	      lda	Field0,x
+    140  f0c5		       85 0d		      sta	PF0
+    141  f0c7		       bd 13 ff 	      lda	Field1,x
+    142  f0ca		       85 0e		      sta	PF1
+    143  f0cc		       bd 14 ff 	      lda	Field2,x
+    144  f0cf		       85 0f		      sta	PF2
+    145  f0d1
+    146  f0d1							; must be done after the odd scanline
+    147  f0d1		       85 02		      sta	WSYNC
+    148  f0d3		       a6 86		      ldx	PLAYER0_SLICE_ODD
+    149  f0d5		       86 1b		      stx	GRP0
+    150  f0d7
+    151  f0d7							; compute next player slice
+    152  f0d7		       98		      tya
+    153  f0d8		       38		      sec		; 2s complement so set carry
+    154  f0d9		       e5 82		      sbc	PLAYER0_Y
+    155  f0db		       30 12		      bmi	.clearPlayer
+    156  f0dd		       c9 08		      cmp	#8
+    157  f0df		       10 0e		      bpl	.clearPlayer
+    158  f0e1		       aa		      tax
+    159  f0e2		       bd d2 ff 	      lda	PlayerBitmap,x
+    160  f0e5		       85 85		      sta	PLAYER0_SLICE_EVEN
+    161  f0e7		       bd d3 ff 	      lda	PlayerBitmap+1,x
+    162  f0ea
+    163  f0ea		       85 86		      sta	PLAYER0_SLICE_ODD
+    164  f0ec		       4c f9 f0 	      jmp	.increment
+    165  f0ef				   .clearPlayer
+    166  f0ef		       ea		      nop
+    167  f0f0		       ea		      nop
+    168  f0f1		       ea		      nop
+    169  f0f2		       ea		      nop
+    170  f0f3		       a9 00		      lda	#0
+    171  f0f5		       85 85		      sta	PLAYER0_SLICE_EVEN
+    172  f0f7		       85 86		      sta	PLAYER0_SLICE_ODD
+    173  f0f9				   .increment
+    174  f0f9		       e6 80		      inc	SCANLINE_N
+    175  f0fb		       e6 80		      inc	SCANLINE_N
+    176  f0fd		       a5 80		      lda	SCANLINE_N
+    177  f0ff		       c9 c0		      cmp	#192
+    178  f101		       d0 b5		      bne	.continue
+    179  f103							; clear playfield at end of line
+    180  f103		       85 02		      STA	WSYNC
+    181  f105		       a9 00		      lda	#0
+    182  f107		       85 0d		      sta	PF0
+    183  f109		       85 0e		      sta	PF1
+    184  f10b		       85 0f		      sta	PF2
+    185  f10d		       60		      rts
+    186  f10e
+    187  f10e
+    188  f10e							; if timing is correct this color is not seen because it should be called in non-visible overscan area
+    189  f10e
+    190  f10e				   FramePost
+    191  f10e		       24 02		      bit	CXP0FB
+    192  f110		       10 0f		      bpl	.noCollision
+    193  f112		       a9 76		      lda	#BLUE
+    194  f114		       85 09		      sta	COLUBK
+    195  f116		       a6 83		      ldx	PLAYER0_X_PREV
+    196  f118		       86 81		      stx	PLAYER0_X
+    197  f11a		       a6 84		      ldx	PLAYER0_Y_PREV
+    198  f11c		       86 82		      stx	PLAYER0_Y
+    199  f11e		       4c 25 f1 	      jmp	.clearCollision
+    200  f121				   .noCollision
+    201  f121		       a9 c2		      lda	#GREEN
+    202  f123		       85 09		      sta	COLUBK
+    203  f125				   .clearCollision
+    204  f125		       a9 00		      lda	#0
+    205  f127		       85 2c		      sta	CXCLR
+    206  f129		       85 0d		      sta	PF0	; clear
+    207  f12b		       85 0e		      sta	PF1	; clear
+    208  f12d		       85 0f		      sta	PF2	; clear
+    209  f12f
+    210  f12f		       60		      RTS
+    211  f130
+    212  ff00					      org	$FF00	; *********************** GRAPHICS DATA
+    213  ff00				   setHorizontalPos
+    214  ff00		       85 02		      sta	WSYNC
+    215  ff02		       38		      sec
+    216  ff03				   .DivideLoop
+    217  ff03		       e9 0f		      sbc	#15
+    218  ff05		       b0 fc		      bcs	.DivideLoop
+    219  ff07		       49 07		      eor	#7
+    220  ff09		       0a		      asl
+    221  ff0a		       0a		      asl
+    222  ff0b		       0a		      asl
+    223  ff0c		       0a		      asl
+    224  ff0d		       85 20		      sta	HMP0
+    225  ff0f		       85 10		      sta	RESP0
+    226  ff11		       60		      rts
+    227  ff12
+    228  ff12				   Playfield
+    229  ff12		       f0 ff ff 00	      .byte.b	%11110000,%11111111,%11111111,$00	; lower nibble ignored and upper reversed for 1st. 3rd reversed, 4th ignored
+    230  ff16		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    231  ff1a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    232  ff1e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    233  ff22		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    234  ff26		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    235  ff2a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    236  ff2e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    237  ff32		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    238  ff36		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    239  ff3a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    240  ff3e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    241  ff42		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    242  ff46		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    243  ff4a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    244  ff4e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    245  ff52		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    246  ff56		       10 3c 00 00	      .byte.b	%00010000,%00111100,%00000000,$00
+    247  ff5a		       10 24 00 00	      .byte.b	%00010000,%00100100,%00000000,$00
+    248  ff5e		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00	; start gap
+    249  ff62		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    250  ff66		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    251  ff6a		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    252  ff6e		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    253  ff72		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    254  ff76		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00
+    255  ff7a		       00 24 00 00	      .byte.b	%00000000,%00100100,%00000000,$00	; end gap
+    256  ff7e		       10 24 00 00	      .byte.b	%00010000,%00100100,%00000000,$00
+    257  ff82		       10 3c 00 00	      .byte.b	%00010000,%00111100,%00000000,$00
+    258  ff86		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    259  ff8a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    260  ff8e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    261  ff92		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    262  ff96		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    263  ff9a		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    264  ff9e		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    265  ffa2		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    266  ffa6		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    267  ffaa		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    268  ffae		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    269  ffb2		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    270  ffb6		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    271  ffba		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    272  ffbe		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    273  ffc2		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    274  ffc6		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    275  ffca		       10 00 00 00	      .byte.b	%00010000,%00000000,%00000000,$00
+    276  ffce		       f0 ff ff 00	      .byte.b	%11110000,%11111111,%11111111,$00
+    277  ffd2
+    278  ffd2		       ff 12	   Field0     =	Playfield
+    279  ffd2		       ff 13	   Field1     =	Playfield+1
+    280  ffd2		       ff 14	   Field2     =	Playfield+2
+    281  ffd2
+    282  ffd2				   PlayerBitmap
+    283  ffd2		       81		      .byte.b	%10000001
+    284  ffd3		       42		      .byte.b	%01000010
+    285  ffd4		       24		      .byte.b	%00100100
+    286  ffd5		       98		      .byte.b	%10011000
+    287  ffd6		       e4		      .byte.b	%11100100
+    288  ffd7		       24		      .byte.b	%00100100
+    289  ffd8		       18		      .byte.b	%00011000
+    290  ffd9		       3c		      .byte.b	%00111100
+    291  ffda
+    292  fffa					      ORG	$FFFA
+    293  fffa		       00 f0		      .word.w	Reset	; NMI
+    294  fffc		       00 f0		      .word.w	Reset	; RESET
+    295  fffe		       00 f0		      .word.w	Reset	; IRQ
+    296  10000				    END

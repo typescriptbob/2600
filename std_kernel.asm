@@ -15,8 +15,13 @@ SCANLINE_N  ds 1
 PLAYER0_X   ds 1
 PLAYER0_Y   ds 1
 
+PLAYER0_X_PREV   ds 1
+PLAYER0_Y_PREV   ds 1
+
 PLAYER0_SLICE_EVEN ds 1  ; player slice even lines
 PLAYER0_SLICE_ODD  ds 1  ; player slice odd lines
+
+BK_COLOR    ds 1
 
 TEMP    ds 1
 
@@ -31,6 +36,8 @@ Reset
     lda #84
     sta PLAYER0_Y
 
+    lda #GREEN
+    sta BK_COLOR
     lda #$FA
     sta COLUP0              ; color player 0
     lda #100
@@ -75,12 +82,12 @@ ScanLine
 
 
 FramePre
-    ldx #GREEN
-    stx COLUBK         ; bk color
+
     lda #WHITE
     sta COLUPF         ; set the playfield color
 
     ldx PLAYER0_Y
+    stx PLAYER0_Y_PREV
     lda #$20
     bit SWCHA
     bne .testUp
@@ -95,6 +102,7 @@ FramePre
     stx PLAYER0_Y
 
     ldx PLAYER0_X
+    stx PLAYER0_X_PREV
     lda #$80
     bit SWCHA
     bne .testLeft
@@ -180,10 +188,21 @@ DoScanLineLoop
 ; if timing is correct this color is not seen because it should be called in non-visible overscan area
 
 FramePost
-    ldx #BLUE
-    stx COLUBK
-
+    bit CXP0FB
+    bpl .noCollision
+    lda #BLUE
+    sta COLUBK
+    ldx PLAYER0_X_PREV
+    stx PLAYER0_X
+    ldx PLAYER0_Y_PREV
+    stx PLAYER0_Y
+    jmp .clearCollision
+.noCollision
+    lda #GREEN
+    sta COLUBK
+.clearCollision
     lda #0
+    sta CXCLR
     sta PF0                ; clear
     sta PF1                ; clear
     sta PF2                ; clear
